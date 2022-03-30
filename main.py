@@ -1,34 +1,68 @@
-import chatterbot
-# import chatterbot_corpus
+import json
+from chatterbot import ChatBot
 from chatterbot.trainers import ListTrainer
+from chatterbot.conversation import Statement
+
+
+def setting():
+    try:
+        with open("setting.txt") as file:
+            return False
+    except FileNotFoundError:
+        with open("setting.txt") as file:
+            file.write("training_completed:1")
+            return True
 
 
 def create_bot():
-    return chatterbot.ChatBot("Bot")
+    return ChatBot("Bot")
 
 
-def training_2(chatbot, file_with_data_train=None):
+def training_2(chatbot, file_with_data_train="data\\dialogs.json"):
     trainer = ListTrainer(chatbot)
 
-    if file_with_data_train:
-        with open(file_with_data_train) as file:
-            training_data = file.readlines()
-            for i in range(len(training_data)):
-                training_data[i] = training_data[i].strip("\n")
-    else:
-        for number_film in range(617):
-            with open(f"data\\m{number_film}.txt") as file:
-                training_data = file.readlines()
-                for i in range(len(training_data)):
-                    training_data[i] = training_data[i].strip("\n")
+    training_data = []
 
-            trainer.train(training_data)
+    with open(file_with_data_train) as file:
+        training_data_json = json.load(file)
+        for key in training_data_json.keys():
+            for i in range(len(training_data_json[key])):
+                training_data_json[key][i] = training_data_json[key][i].strip("\n")
+
+            training_data += [training_data_json[key]]
+
+    for dialog in training_data:
+        trainer.train(dialog)
+
+
+def get_feedback():
+    text = input('"Yes" or "No": ')
+
+    if 'yes' in text.lower():
+        return False  # or True?
+    elif 'no' in text.lower():
+        return True  # or False?
+    else:
+        print('Please type either "Yes" or "No"')
+        return get_feedback()
 
 
 if __name__ == '__main__':
     bot = create_bot()
-    training_2(chatbot=bot, file_with_data_train="F:\\project\\bot\\new_movie_lines.txt")
+    if setting():
+        training_2(chatbot=bot)
 
     while True:
-        bot_input = bot.get_response(input("Вы: "))
-        print("Бот: ", bot_input)
+        input_statement = Statement(text=input("Вы: "))
+        bot_response = bot.generate_response(input_statement)
+        # or
+        # bot_response = bot.get_response(input_statement)
+        print("Бот: ", bot_response)
+        print(10*"#", 'Is "{}" a coherent response to "{}"?'.format(bot_response.text, input_statement.text), 10*'#', sep='\n')
+
+        if get_feedback():
+            print("Please input the correct one:", end='')
+            correct_response = Statement(text=input())
+            bot.learn_response(correct_response, input_statement)  # разобраться как работает
+            print('\nResponses added to bot')
+

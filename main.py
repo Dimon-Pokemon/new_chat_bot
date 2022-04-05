@@ -4,6 +4,10 @@ from chatterbot.trainers import ChatterBotCorpusTrainer  # скорее всег
 from chatterbot.trainers import ListTrainer  # класс для обучения
 from chatterbot.conversation import Statement  # хз, что это, но нада
 
+#эти импорты нужны для обработки исключений
+import traceback
+import sys
+
 
 def read_settings(file_name: str = "setting.json", user: str = "user_id_localuser", user_lang: str = "ru") -> dict:
     """Возвращает словарь с настройками пользователя, если файл с настройками существует, иначе - инициализирует его"""
@@ -47,25 +51,13 @@ def create_bot():
     return ChatBot("Bot")
 
 
-def training_2(chatbot):
-    """
-    Альтернативная функция обучения бота с помощью встроенных корпусов данных.
-    Плохая альтернатива.
-    Скорее всего эта функция будет удалена.
-    Но пока пусть будет. Вдруг пригодится.
-    """
-    trainer = ChatterBotCorpusTrainer(chatbot)
-
-    trainer.train('chatterbot.corpus.russian')
-
-
 def training_1(chatbot: "<class 'chatterbot.chatterbot.ChatBot'>", file_with_data_train: "path to file" = "data\\lang\\en\\dialogs_en.json"):
     """Функция тренировки бота"""
     trainer = ListTrainer(chatbot)
 
     training_data = []  # массив диалогов
 
-    with open(file_with_data_train) as file:  # открытие json-файла с диалогами
+    with open(file_with_data_train, encoding="utf-8") as file:  # открытие json-файла с диалогами
         training_data_json = json.load(file)  # чтение json-файла с диалогами в словарь диалогов
         for key in training_data_json.keys():  # перебираем ключи словаря(key имеет вид 'u1+u2', где u1 и u2 - идентификаторы говорящих актеров, т.е. между кем идет текущий диалог)
             for i in range(len(training_data_json[key])):  # перебираем высказывания текущего диалога
@@ -92,13 +84,17 @@ def get_feedback():
 
 def main():
     """Главная функция. Объединяет все остальные функции."""
+
     bot = create_bot()
 
-    training_2(chatbot=bot)
-
     settings_from_a_file = read_settings()
+    if settings_from_a_file["user_id_localuser"]["training_completed"] == 0:
+        lang = settings_from_a_file["user_id_localuser"]["lang"]
+        training_1(chatbot=bot, file_with_data_train=f"data\\lang\\{lang}\\dialogs_{lang}.json")
 
+    # главный цикл
     while True:
+
         user_input_statement = input("Вы: ")  # создаем утверждение на основе пользовательского ввода
         if user_input_statement.lower() == "настройки":
             show_settings(settings_from_a_file)
@@ -107,7 +103,7 @@ def main():
             save_settings(settings_from_a_file)
             user_input_statement = input("Вы: ")
 
-        input_statement = Statement(text=user_input_statement)
+        input_statement = Statement(text=user_input_statement)  # утверждение пользователя
         bot_response = bot.generate_response(input_statement)  # генерируем ответ бота
         # or
         # bot_response = bot.get_response(input_statement)
@@ -117,11 +113,19 @@ def main():
         if get_feedback():  # если пользователю не понравился ответ бота
             print("Please input the correct one:", end='')  # просим ввести корректный ответ, который бот должен в дальнейшем использовать
             correct_response = Statement(text=input())  # создаем утверждение на основе пользовательского ввода
+            # решение проблемы, связанной с необучаемостью бота
+            last_statement_answer = [input_statement.text, correct_response.text]  # создаем массив из двух элементов - утверждение, которое ввел пользователь, и исправленный пользователем ответ бота
             try:
-                bot.learn_response(correct_response, input_statement)  # разобраться как работает
+                trainer = ListTrainer(bot)  # создаем экземпляр 'тренера'
+                trainer.train(last_statement_answer)  # тренируем бота
+                # bot.learn_response(correct_response, input_statement)  # разобраться как работает
                 print('\nResponses added to bot')
-            except:  # по PEP не рекомендуется перехватывать любые исключения, ну а я рискну
-                print('\nПроизошла ошибка. Бот не учел вашу корректировку.')
+            except:
+                print('\nПроизошла ошибка. Бот не учел вашу корректировку. Подробности смотрите ниже')
+                tb = sys.exc_info()[2]
+                tbinfo = traceback.format_tb(tb)[0]
+                pymsg = "PYTHON ERRORS:\nTraceback info:\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
+                print(pymsg)
 
 
 if __name__ == '__main__':

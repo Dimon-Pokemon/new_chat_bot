@@ -8,6 +8,7 @@ from chatterbot.conversation import Statement  # хз, что это, но на�
 import traceback
 import sys
 
+print(10*"#", "БИБЛИОТЕКИ ПОДКЛЮЧЕНЫ", 10*"#", '\n', sep='\n')
 
 def read_settings(file_name: str = "setting.json", user: str = "user_id_localuser", user_lang: str = "ru") -> dict:
     """Возвращает словарь с настройками пользователя, если файл с настройками существует, иначе - инициализирует его"""
@@ -48,12 +49,20 @@ def change_settings(settings_from_a_file, user: str = "user_id_localuser") -> di
 
 def create_bot():
     """Инициализирует бота. Не знаю, зачем эта функция, но пусть будет."""
-    return ChatBot("Bot")
+    return ChatBot("Bot", logic_adapter=['chatterbot.logic.MathematicalEvaluation',
+                                         'chatterbot.logic.TimeLogicAdapter',
+                                         'chatterbot.logic.BestMatch',
+                                         {
+                                             'import_path':'chatterbot.logic.BestMatch',
+                                             'default_response':'I am sorry, I do not understand',
+                                             'maximum_similarity_threshold':0.7
+                                         }
+                                         ])
 
 
-def training_1(chatbot: "<class 'chatterbot.chatterbot.ChatBot'>", file_with_data_train: "path to file" = "data\\lang\\en\\dialogs_en.json"):
+def training_1(trainer, chatbot: "<class 'chatterbot.chatterbot.ChatBot'>", file_with_data_train: "path to file" = "data\\lang\\en\\dialogs_en.json"):
     """Функция тренировки бота"""
-    trainer = ListTrainer(chatbot)
+    #trainer = ListTrainer(chatbot)
 
     training_data = []  # массив диалогов
 
@@ -86,11 +95,15 @@ def main():
     """Главная функция. Объединяет все остальные функции."""
 
     bot = create_bot()
+    print(10 * "#", "БОТ СОЗДАН", 10 * "#", '\n', sep='\n')
+    trainer = ListTrainer(bot)
 
     settings_from_a_file = read_settings()
     if settings_from_a_file["user_id_localuser"]["training_completed"] == 0:
         lang = settings_from_a_file["user_id_localuser"]["lang"]
-        training_1(chatbot=bot, file_with_data_train=f"data\\lang\\{lang}\\dialogs_{lang}.json")
+        training_1(trainer=trainer, chatbot=bot, file_with_data_train=f"data\\lang\\{lang}\\dialogs_{lang}.json")
+        settings_from_a_file["user_id_localuser"]["training_completed"] = 1
+        save_settings(settings_from_a_file=settings_from_a_file)
 
     # главный цикл
     while True:
@@ -116,17 +129,28 @@ def main():
             # решение проблемы, связанной с необучаемостью бота
             last_statement_answer = [input_statement.text, correct_response.text]  # создаем массив из двух элементов - утверждение, которое ввел пользователь, и исправленный пользователем ответ бота
             try:
-                trainer = ListTrainer(bot)  # создаем экземпляр 'тренера'
+                #trainer = ListTrainer(bot)  # создаем экземпляр 'тренера'
                 trainer.train(last_statement_answer)  # тренируем бота
                 # bot.learn_response(correct_response, input_statement)  # разобраться как работает
                 print('\nResponses added to bot')
             except:
                 print('\nПроизошла ошибка. Бот не учел вашу корректировку. Подробности смотрите ниже')
-                tb = sys.exc_info()[2]
-                tbinfo = traceback.format_tb(tb)[0]
-                pymsg = "PYTHON ERRORS:\nTraceback info:\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
+                exception_information = sys.exc_info()
+                exception_type, exception_value, traceback_obj = exception_information
+
+                traceback_info = traceback.format_tb(traceback_obj)[0]
+                pymsg = "PYTHON ERRORS:\nTraceback info:\n" + traceback_info + "\nError Info:\n" + str(sys.exc_info()[1])
                 print(pymsg)
 
+                try:
+                    with open("error.txt", "a") as file:
+                        traceback.print_exception(etype=exception_type, value=exception_value, tb=traceback_obj, file=file)
+                except FileNotFoundError:
+                    with open("error.txt", "w") as file:
+                        traceback.print_exception(etype=exception_type, value=exception_value, tb=traceback_obj, file=file)
 
+
+
+print(10*"#", "ФУНКЦИИ ИНИЦИАЛИЗИРОВАНЫ", 10*"#", '\n', sep='\n')
 if __name__ == '__main__':
     main()

@@ -3,6 +3,7 @@ from chatterbot import ChatBot  # основной класс для чат-бо
 from chatterbot.trainers import ChatterBotCorpusTrainer  # скорее всего ненужно
 from chatterbot.trainers import ListTrainer  # класс для обучения
 from chatterbot.conversation import Statement  # хз, что это, но нада
+from chatterbot.response_selection import get_random_response
 
 #эти импорты нужны для обработки исключений
 import traceback
@@ -49,15 +50,16 @@ def change_settings(settings_from_a_file, user: str = "user_id_localuser") -> di
 
 def create_bot():
     """Инициализирует бота. Не знаю, зачем эта функция, но пусть будет."""
-    return ChatBot("Bot", logic_adapter=['chatterbot.logic.MathematicalEvaluation',
-                                         'chatterbot.logic.TimeLogicAdapter',
-                                         'chatterbot.logic.BestMatch',
-                                         {
-                                             'import_path':'chatterbot.logic.BestMatch',
-                                             'default_response':'I am sorry, I do not understand',
-                                             'maximum_similarity_threshold':0.7
-                                         }
-                                         ])
+    return ChatBot("Bot", response_selection_method=get_random_response, logic_adapter=[
+        'chatterbot.logic.MathematicalEvaluation',
+        'chatterbot.logic.TimeLogicAdapter',
+        'chatterbot.logic.BestMatch',
+        {
+            'import_path':'chatterbot.logic.BestMatch',
+            'default_response':'I am sorry, I do not understand',
+            'maximum_similarity_threshold':0.7
+        }
+    ])
 
 
 def training_1(trainer, chatbot: "<class 'chatterbot.chatterbot.ChatBot'>", file_with_data_train: "path to file" = "data\\lang\\en\\dialogs_en.json"):
@@ -78,7 +80,7 @@ def training_1(trainer, chatbot: "<class 'chatterbot.chatterbot.ChatBot'>", file
         trainer.train(dialog)  # обучаем бота на каждом цельном диалоге
 
 
-def get_feedback():
+def get_feedback() -> "return bool or get_feedback()":
     """Функция определитель - устраивает ли пользователя высказывание бота"""
     text = input('"Yes" or "No": ')
 
@@ -111,7 +113,7 @@ def main():
         user_input_statement = input("Вы: ")  # создаем утверждение на основе пользовательского ввода
         if user_input_statement.lower() == "настройки":
             show_settings(settings_from_a_file)
-            #тут изменяем настройки
+            # тут изменяем настройки
             settings_from_a_file = change_settings(settings_from_a_file)
             save_settings(settings_from_a_file)
             user_input_statement = input("Вы: ")
@@ -129,7 +131,7 @@ def main():
             # решение проблемы, связанной с необучаемостью бота
             last_statement_answer = [input_statement.text, correct_response.text]  # создаем массив из двух элементов - утверждение, которое ввел пользователь, и исправленный пользователем ответ бота
             try:
-                #trainer = ListTrainer(bot)  # создаем экземпляр 'тренера'
+                # trainer = ListTrainer(bot)  # создаем экземпляр 'тренера'
                 trainer.train(last_statement_answer)  # тренируем бота
                 # bot.learn_response(correct_response, input_statement)  # разобраться как работает
                 print('\nResponses added to bot')
@@ -150,7 +152,7 @@ def main():
                         traceback.print_exception(etype=exception_type, value=exception_value, tb=traceback_obj, file=file)
 
 
-
 print(10*"#", "ФУНКЦИИ ИНИЦИАЛИЗИРОВАНЫ", 10*"#", '\n', sep='\n')
+
 if __name__ == '__main__':
     main()

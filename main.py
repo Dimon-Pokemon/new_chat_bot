@@ -1,6 +1,5 @@
 import json  # библиотека для работы с json файлами
 from chatterbot import ChatBot  # основной класс для чат-бота
-from chatterbot.trainers import ChatterBotCorpusTrainer  # скорее всего ненужно
 from chatterbot.trainers import ListTrainer  # класс для обучения
 from chatterbot.conversation import Statement  # хз, что это, но нада
 from chatterbot.response_selection import get_random_response
@@ -49,8 +48,8 @@ def change_settings(settings_from_a_file, user: str = "user_id_localuser") -> di
 
 
 def create_bot():
-    """Инициализирует бота. Не знаю, зачем эта функция, но пусть будет."""
-    return ChatBot("Bot", response_selection_method=get_random_response, logic_adapter=[
+    """Инициализирует бота"""
+    return ChatBot("Bot", response_selection_method=get_random_response, logic_adapters=[
         'chatterbot.logic.MathematicalEvaluation',
         'chatterbot.logic.TimeLogicAdapter',
         'chatterbot.logic.BestMatch',
@@ -93,6 +92,24 @@ def get_feedback() -> "return bool or get_feedback()":
         return get_feedback()  # повторный запуск функции
 
 
+def user_dictionary(user_id: str, statements: "Список с двумя утверждениями", path="dict_%s.txt") -> None:
+    """
+        Функция заполняет индивидуальный словарь пользователя.
+
+        Параметр path должен иметь вид path_to_file\\dict_%s.txt, где:
+            -path_to_file - путь до файла
+            -dict_%s.txt - название файла, %s - user_id(id пользователя)
+    """
+    try:  # ставим под сомнение следующий блок кода:
+        with open(path % user_id, "a") as file:  # открываем файл в режиме дозаписи
+            for statement in statements:
+                file.write(statement)
+    except FileNotFoundError:  # если файл не найден
+        with open(path % user_id, "w") as file:  # создаем файл
+            for statement in statements:
+                file.write(statement+'\n')
+
+
 def main():
     """Главная функция. Объединяет все остальные функции."""
 
@@ -133,6 +150,7 @@ def main():
             try:
                 # trainer = ListTrainer(bot)  # создаем экземпляр 'тренера'
                 trainer.train(last_statement_answer)  # тренируем бота
+                user_dictionary("user_id_localuser", last_statement_answer)
                 # bot.learn_response(correct_response, input_statement)  # разобраться как работает
                 print('\nResponses added to bot')
             except:

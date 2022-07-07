@@ -49,21 +49,22 @@ def change_settings(settings_from_a_file, user: str = "user_id_localuser") -> di
 
 def create_bot():
     """Инициализирует бота"""
-    return ChatBot("Bot", response_selection_method=get_random_response, logic_adapters=[
+    # удалил аргументы storage_adapter="chatterbot.storage.MongoDatabaseAdapter", database_uri="mongodb://127.0.0.1:27017/chatterbot_db",
+    return ChatBot("Bot",  response_selection_method=get_random_response, logic_adapters=[
         'chatterbot.logic.MathematicalEvaluation',
         'chatterbot.logic.TimeLogicAdapter',
         'chatterbot.logic.BestMatch',
         {
             'import_path':'chatterbot.logic.BestMatch',
             'default_response':'I am sorry, I do not understand',
-            'maximum_similarity_threshold':0.7
+            'maximum_similarity_threshold':0.8
         }
     ])
 
 
 def training_1(trainer, chatbot: "<class 'chatterbot.chatterbot.ChatBot'>", file_with_data_train: "path to file" = "data\\lang\\en\\dialogs_en.json"):
     """Функция тренировки бота"""
-    #trainer = ListTrainer(chatbot)
+    #trainer = ListTrainer(chatbot) - было перенесено в главную функцию main. Хз зачем.
 
     training_data = []  # массив диалогов
 
@@ -87,9 +88,11 @@ def get_feedback() -> "return bool or get_feedback()":
         return False  # or True?
     elif 'no' in text.lower():
         return True  # or False?
-    else:  # выполняется блок else, если пользователь сморозил хуйню
-        print('Please type either "Yes" or "No"')  # просьба не морозить хуйню, а ответить 'да' или 'нет'
+    """
+    else:  # выполняется блок else, если пользователь ввел что-то иное
+        print('Please type either "Yes" or "No"')  
         return get_feedback()  # повторный запуск функции
+    """
 
 
 def user_dictionary(user_id: str, statements: "Список с двумя утверждениями", path="dict_%s.txt") -> None:
@@ -103,12 +106,19 @@ def user_dictionary(user_id: str, statements: "Список с двумя утв
     try:  # ставим под сомнение следующий блок кода:
         with open(path % user_id, "a") as file:  # открываем файл в режиме дозаписи
             for statement in statements:
-                file.write(statement)
+                file.write(statement+'\n')
     except FileNotFoundError:  # если файл не найден
         with open(path % user_id, "w") as file:  # создаем файл
             for statement in statements:
                 file.write(statement+'\n')
 
+def save_dialog(user_input_statement, bot_response, user: str = "user_id_localuser"):
+    try:
+        with open(f"local_dict_{user}.txt", "a") as file:
+            file.write(user_input_statement + "\n" +bot_response + "\n")
+    except(FileNotFoundError):
+        with open(f"local_dict_{user}.txt", "w") as file:
+            file.write(user_input_statement+"\n"+bot_response+"\n")
 
 def main():
     """Главная функция. Объединяет все остальные функции."""
@@ -151,6 +161,7 @@ def main():
                 # trainer = ListTrainer(bot)  # создаем экземпляр 'тренера'
                 trainer.train(last_statement_answer)  # тренируем бота
                 user_dictionary("user_id_localuser", last_statement_answer)
+                save_dialog(user_input_statement, last_statement_answer[1])
                 # bot.learn_response(correct_response, input_statement)  # разобраться как работает
                 print('\nResponses added to bot')
             except:
@@ -168,6 +179,8 @@ def main():
                 except FileNotFoundError:
                     with open("error.txt", "w") as file:
                         traceback.print_exception(etype=exception_type, value=exception_value, tb=traceback_obj, file=file)
+        else:
+            save_dialog(input_statement, bot_response)
 
 
 print(10*"#", "ФУНКЦИИ ИНИЦИАЛИЗИРОВАНЫ", 10*"#", '\n', sep='\n')
